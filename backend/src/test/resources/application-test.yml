@@ -1,0 +1,22 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+
+app:
+  jwt:
+    secret: test-secret-key-with-at-least-32-characters-long
+    expiration-ms: 86400000
+  stripe:
+    api-key: sk_test_dummy
+    webhook-secret: whsec_test_dummy
+    success-url: http://localhost:3000/payment/success
+    cancel-url: http://localhost:3000/payment/cancel
+    subscription-price-id: price_test_dummy
+    private-session-price-cents: 5000
