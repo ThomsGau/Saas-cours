@@ -30,6 +30,11 @@ public class AvailabilityController {
         return availabilityService.listInstructors();
     }
 
+    @GetMapping("/availabilities")
+    public List<AvailabilitySlotResponse> listAllAvailableSlots() {
+        return availabilityService.listAllAvailableSlots();
+    }
+
     @GetMapping("/instructors/{instructorId}/availabilities")
     public List<AvailabilitySlotResponse> listAvailableSlots(@PathVariable Long instructorId) {
         return availabilityService.listAvailableSlotsForInstructor(instructorId);

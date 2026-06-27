@@ -17,7 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -27,7 +27,7 @@ public class AvailabilityService {
     private final AvailabilitySlotRepository availabilitySlotRepository;
     private final UserRepository userRepository;
     private final CurrentUserService currentUserService;
-    private final SessionOverlapChecker overlapChecker;
+    private final SchedulingOverlapChecker overlapChecker;
 
     @Transactional(readOnly = true)
     public List<InstructorSummaryResponse> listInstructors() {
@@ -41,12 +41,13 @@ public class AvailabilityService {
         User instructor = currentUserService.getCurrentUser();
         requireInstructor(instructor);
 
-        if (overlapChecker.hasInstructorOverlap(
+        if (overlapChecker.hasInstructorSchedulingConflict(
                 instructor.getId(),
                 request.startAt(),
-                request.durationMinutes()
+                request.durationMinutes(),
+                null
         )) {
-            throw new SlotNotAvailableException("Ce créneau chevauche une session existante.");
+            throw new SlotNotAvailableException("Ce créneau chevauche une disponibilité ou session existante.");
         }
 
         AvailabilitySlot slot = AvailabilitySlot.builder()
@@ -64,7 +65,16 @@ public class AvailabilityService {
         User instructor = currentUserService.getCurrentUser();
         requireInstructor(instructor);
         return availabilitySlotRepository
-                .findByInstructorIdAndStartAtAfterOrderByStartAtAsc(instructor.getId(), LocalDateTime.now())
+                .findByInstructorIdAndStartAtAfterOrderByStartAtAsc(instructor.getId(), Instant.now())
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AvailabilitySlotResponse> listAllAvailableSlots() {
+        return availabilitySlotRepository
+                .findByBookedFalseAndStartAtAfterOrderByStartAtAsc(Instant.now())
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -81,7 +91,7 @@ public class AvailabilityService {
         return availabilitySlotRepository
                 .findByInstructorIdAndBookedFalseAndStartAtAfterOrderByStartAtAsc(
                         instructorId,
-                        LocalDateTime.now()
+                        Instant.now()
                 )
                 .stream()
                 .map(this::toResponse)

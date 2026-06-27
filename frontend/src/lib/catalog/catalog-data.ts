@@ -186,13 +186,39 @@ export const CATALOG_COURSES: CatalogCourse[] = [
   },
 ];
 
+function toCatalogCourseType(
+  primaryLessonType: CourseSummary["primaryLessonType"],
+): CatalogCourseType | null {
+  if (primaryLessonType === "PDF") {
+    return "PDF";
+  }
+  if (primaryLessonType === "VIDEO") {
+    return "Video";
+  }
+  return null;
+}
+
+function pickPlaceholder(
+  primaryLessonType: CourseSummary["primaryLessonType"],
+  index: number,
+): CatalogCourse {
+  const catalogType = toCatalogCourseType(primaryLessonType);
+  const pool =
+    catalogType !== null
+      ? CATALOG_COURSES.filter((course) => course.type === catalogType)
+      : CATALOG_COURSES;
+
+  return pool[index % pool.length] ?? CATALOG_COURSES[index % CATALOG_COURSES.length];
+}
+
 export function mergeApiCourses(apiCourses: CourseSummary[]): CatalogCourse[] {
   if (apiCourses.length === 0) {
     return CATALOG_COURSES;
   }
 
   return apiCourses.map((apiCourse, index) => {
-    const placeholder = CATALOG_COURSES[index % CATALOG_COURSES.length];
+    const placeholder = pickPlaceholder(apiCourse.primaryLessonType, index);
+    const catalogType = toCatalogCourseType(apiCourse.primaryLessonType);
 
     return {
       ...placeholder,
@@ -201,6 +227,13 @@ export function mergeApiCourses(apiCourses: CourseSummary[]): CatalogCourse[] {
       description: apiCourse.description,
       instructorId: apiCourse.instructorId,
       instructorEmail: apiCourse.instructorEmail,
+      ...(catalogType !== null
+        ? {
+            type: catalogType,
+            image: placeholder.image,
+            duration: placeholder.duration,
+          }
+        : {}),
     };
   });
 }

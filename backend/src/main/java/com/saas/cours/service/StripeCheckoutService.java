@@ -95,7 +95,7 @@ public class StripeCheckoutService {
         long amountCents = stripeProperties.getPrivateSessionPriceCents();
         Order order = privateSession.getOrder();
 
-        if (order == null) {
+        if (order == null || order.getStatus() == OrderStatus.CANCELLED) {
             order = Order.builder()
                     .user(student)
                     .orderType(OrderType.PRIVATE_SESSION)

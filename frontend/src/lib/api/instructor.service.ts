@@ -14,8 +14,12 @@ export async function listInstructorAvailabilities(
   instructorId: number | string,
 ): Promise<AvailabilitySlot[]> {
   return apiGet<AvailabilitySlot[]>(
-    apiEndpoints.instructors.availabilities(instructorId),
+    apiEndpoints.instructors.instructorAvailabilities(instructorId),
   );
+}
+
+export async function listAvailableSlots(): Promise<AvailabilitySlot[]> {
+  return apiGet<AvailabilitySlot[]>(apiEndpoints.instructors.availabilities);
 }
 
 export async function listMyAvailabilities(): Promise<AvailabilitySlot[]> {

@@ -1,8 +1,8 @@
 # Context — Projet SaaS Cours (Backend + Frontend)
 
-> **Dernière mise à jour :** 25 juin 2026  
-> **État du projet :** Backend terminé · Frontend terminé (Étapes 1 à 5)  
-> **Prochaines évolutions possibles :** `GET /api/users/me`, seed data, dashboard admin, suivi de progression réel
+> **Dernière mise à jour :** 27 juin 2026  
+> **État du projet :** Backend terminé · Frontend terminé (Étapes 1 à 5 + catalogue instructeur)  
+> **Prochaines évolutions possibles :** `GET /api/users/me`, seed data, dashboard admin, suivi de progression réel, métadonnées catalogue (image, prix) côté API
 
 ---
 
@@ -195,16 +195,37 @@ docker compose down -v  # Arrêter + supprimer les données
 | Méthode | URL | Rôle | Description |
 |---|---|---|---|
 | `GET` | `/instructors` | Tous | Liste instructeurs |
-| `GET` | `/instructors/{id}/availabilities` | Tous | Créneaux libres futurs |
-| `POST` | `/me/instructor/availabilities` | INSTRUCTOR | Créer un créneau |
+| `GET` | `/availabilities` | Tous | Tous les créneaux libres futurs (agrégé) |
+| `GET` | `/instructors/{id}/availabilities` | Tous | Créneaux libres futurs d'un instructeur |
+| `POST` | `/me/instructor/availabilities` | INSTRUCTOR | Créer un créneau (`startAt` ISO UTC, `durationMinutes` 15–480) |
 | `GET` | `/me/instructor/availabilities` | INSTRUCTOR | Mes créneaux |
 | `DELETE` | `/me/instructor/availabilities/{slotId}` | INSTRUCTOR | Supprimer (si non réservé) |
+
+#### Catalogue instructeur (JWT + rôle INSTRUCTOR)
+
+| Méthode | URL | Description |
+|---|---|---|
+| `POST` | `/me/instructor/courses` | Créer un cours (`title`, `description` optionnel) — publié immédiatement (`published = true`) |
+| `GET` | `/me/instructor/courses` | Lister mes cours |
+| `GET` | `/me/instructor/courses/{courseId}` | Détail d'un de mes cours + leçons |
+| `POST` | `/me/instructor/courses/{courseId}/lessons` | Ajouter une leçon (`title`, `lessonType`, `contentUrl`, …) |
+| `DELETE` | `/me/instructor/courses/{courseId}/lessons/{lessonId}` | Supprimer une leçon |
+| `DELETE` | `/me/instructor/courses/{courseId}` | Supprimer un cours |
+
+**DTOs requête :**
+- `CreateCourseRequest` : `title` (obligatoire), `description` (optionnel)
+- `CreateLessonRequest` : `title`, `description`, `lessonType` (`VIDEO` \| `PDF`), `contentUrl` (URL, max 2048), `durationMinutes` (optionnel)
+
+**Service / contrôleur :** `InstructorCatalogService`, `InstructorCatalogController` — contrôle rôle instructeur + ownership (`course.instructor.id == currentUser.id`).
+
+> Les leçons YouTube sont stockées comme `lessonType = VIDEO` avec l'URL YouTube dans `contentUrl`. Pas d'upload de fichiers : liens externes uniquement.
 
 #### Réservations (JWT)
 
 | Méthode | URL | Rôle | Description |
 |---|---|---|---|
 | `POST` | `/bookings` | STUDENT | Réserver (`{ availabilitySlotId }`) |
+| `POST` | `/bookings/{sessionId}/cancel` | STUDENT / INSTRUCTOR | Annuler session `REQUESTED` (libère le créneau) |
 | `GET` | `/bookings/me` | STUDENT | Mes réservations |
 | `GET` | `/bookings/instructor/me` | INSTRUCTOR | Sessions reçues |
 
@@ -232,7 +253,7 @@ docker compose down -v  # Arrêter + supprimer les données
 
 **Événements gérés :**
 - `checkout.session.completed` → Order PAID, subscription ACTIVE, session CONFIRMED
-- `checkout.session.expired` → Order CANCELLED
+- `checkout.session.expired` → Order CANCELLED, session REQUESTED annulée, créneau libéré
 - `customer.subscription.updated` → mise à jour `subscriptionStatus`
 - `customer.subscription.deleted` → CANCELLED
 - `invoice.payment_failed` → PAST_DUE
@@ -282,16 +303,16 @@ frontend/src/
 │   ├── payment/cancel/page.tsx
 │   └── api/auth/[...nextauth]/route.ts
 ├── components/
-│   ├── ui/                           # Shadcn (Button, Card, Form, Alert, Badge…)
+│   ├── ui/                           # Shadcn (Button, Card, Form, Alert, Badge, Textarea…)
 │   ├── layout/                       # AppHeader, AppSidebar, AppShell
 │   ├── auth/                         # LoginForm, RegisterForm, ApiAuthBridge
-│   ├── catalog/                      # CourseCard, CourseList, VideoPlayer, LessonList…
+│   ├── catalog/                      # CourseCard, CourseList, VideoPlayer (YouTube embed), LessonList…
 │   ├── booking/                      # BookingContent
-│   ├── dashboard/                    # StudentDashboard, InstructorDashboard…
+│   ├── dashboard/                    # StudentDashboard, InstructorDashboard, CreateCourseForm, MyCoursesList…
 │   ├── sessions/                     # PrivateSessionsList, SessionStatusBadge
 │   └── providers.tsx
 ├── lib/
-│   ├── api/                          # client, types, endpoints, services
+│   ├── api/                          # client, types, endpoints, services (catalog-instructor.service.ts)
 │   ├── auth/                         # authOptions, getAuthSession
 │   ├── catalog/                      # handle-catalog-error
 │   ├── subscription/                 # check-subscription
@@ -334,7 +355,7 @@ frontend/src/
 | Page / composant | Rôle |
 |---|---|
 | `/courses` | Liste des cours (auth + gestion 403 → `/subscribe`) |
-| `/courses/[id]` | Détail, liste leçons, lecteur vidéo / iframe PDF |
+| `/courses/[id]` | Détail, liste leçons, lecteur vidéo (YouTube iframe ou `<video>`) / iframe PDF |
 | `/subscribe` | Checkout abonnement Stripe |
 | `/payment/success`, `/payment/cancel` | Retours Stripe |
 | `catalog.service.ts` | `listCourses`, `getCourse`, `getLesson` |
@@ -360,7 +381,24 @@ frontend/src/
 **Dashboard instructeur :**
 - Formulaire création de créneaux
 - Liste créneaux (suppression si non réservés)
+- **Catalogue — Mes cours** : création de cours, ajout de leçons PDF ou vidéo YouTube via lien, suppression cours/leçons
 - Sessions reçues
+
+### 3.9 Catalogue instructeur (dashboard) ✅
+
+| Fichier | Rôle |
+|---|---|
+| `catalog-instructor.service.ts` | `createCourse`, `listMyCourses`, `getMyCourse`, `addLesson`, `deleteLesson`, `deleteCourse` |
+| `create-course-form.tsx` | Formulaire création cours (titre + description) |
+| `add-lesson-form.tsx` | Ajout leçon : type Vidéo YouTube / PDF, URL, durée optionnelle |
+| `my-courses-list.tsx` | Liste dépliable des cours + gestion des leçons |
+| `video-player.tsx` | Détection URLs YouTube → iframe embed ; sinon lecteur `<video>` natif |
+
+**Endpoints frontend (`endpoints.ts`) :** `/me/instructor/courses`, `/me/instructor/courses/{id}/lessons`, etc.
+
+**Publication :** les cours créés par l'instructeur sont publiés immédiatement (`published = true`). Consultation côté élève : abonnement `ACTIVE` requis (inchangé).
+
+**Limite UI liste catalogue :** `mergeApiCourses()` applique encore des visuels placeholder (image, prix, badge type) par index — le détail et la lecture des leçons fonctionnent correctement.
 
 ### 3.8 Lancement frontend
 
@@ -380,6 +418,7 @@ npm run build   # Build production (validé OK)
 | PostgreSQL Docker (port 5433) | ✅ |
 | Auth JWT backend | ✅ |
 | Catalogue backend (abonnement ACTIVE) | ✅ |
+| CRUD catalogue instructeur backend | ✅ |
 | Disponibilités & réservations backend | ✅ |
 | Stripe Checkout + Webhooks backend | ✅ |
 | Frontend UI shell | ✅ |
@@ -389,6 +428,8 @@ npm run build   # Build production (validé OK)
 | Frontend abonnement `/subscribe` | ✅ |
 | Frontend réservation `/booking` | ✅ |
 | Frontend dashboard `/dashboard` | ✅ |
+| Frontend catalogue instructeur (Mes cours) | ✅ |
+| Lecteur YouTube (embed) dans `/courses/[id]` | ✅ |
 
 ---
 
@@ -407,7 +448,16 @@ Instructeur : /dashboard → créer créneau
 Élève : /booking → choisir instructeur → réserver → Stripe → webhook → session CONFIRMED
 ```
 
-### 5.3 Données de test (SQL manuel)
+### 5.3 Gestion catalogue par l'instructeur
+
+```
+Instructeur : /dashboard → section « Catalogue — Mes cours »
+  → Créer un cours (titre, description)
+  → Déplier le cours → Ajouter une leçon (PDF ou vidéo YouTube via URL)
+  → Cours publié immédiatement dans GET /catalog/courses (élèves abonnés)
+```
+
+### 5.4 Données de test (SQL manuel)
 
 ```sql
 -- Activer abonnement pour test
@@ -427,7 +477,8 @@ VALUES ('Intro Java', 'Cours de démarrage', true, 1, NOW(), NOW());
 | `subscriptionStatus` absent de la session | Détecté via probe catalogue (403) ; ajouter `GET /api/users/me` recommandé |
 | Progression cours | Compteur catalogue côté dashboard, pas de suivi leçon par leçon |
 | Dashboard admin | Placeholder uniquement |
-| Seed data / CRUD admin cours | Non implémenté (insertion SQL manuelle) |
+| Métadonnées catalogue (image, prix, type) | Placeholders côté frontend (`mergeApiCourses`) ; non persistées en API |
+| Seed data | Non implémenté (insertion SQL manuelle ou via dashboard instructeur) |
 | `middleware.ts` Next.js | Non utilisé ; guards côté client via `useSession` |
 
 ---

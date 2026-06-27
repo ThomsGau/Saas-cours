@@ -66,9 +66,9 @@ export function MyAvailabilitiesList({ refreshKey = 0 }: MyAvailabilitiesListPro
 
   if (isLoading) {
     return (
-      <div className="space-y-2">
-        <Skeleton className="h-16 w-full" />
-        <Skeleton className="h-16 w-full" />
+      <div className="space-y-0 divide-y divide-border/40">
+        <Skeleton className="h-14 w-full rounded-none" />
+        <Skeleton className="h-14 w-full rounded-none" />
       </div>
     );
   }
@@ -83,21 +83,23 @@ export function MyAvailabilitiesList({ refreshKey = 0 }: MyAvailabilitiesListPro
 
   if (slots.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+      <p className="rounded-xl border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
         Aucun créneau à venir.
       </p>
     );
   }
 
   return (
-    <ul className="space-y-3">
+    <ul>
       {slots.map((slot) => (
         <li
           key={slot.id}
-          className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
+          className="flex flex-col gap-3 border-b border-border/40 py-4 last:border-0 sm:flex-row sm:items-center sm:justify-between"
         >
-          <div>
-            <p className="font-medium">{formatDateTime(slot.startAt)}</p>
+          <div className="min-w-0">
+            <p className="font-medium text-foreground">
+              {formatDateTime(slot.startAt)}
+            </p>
             <p className="text-sm text-muted-foreground">
               {slot.durationMinutes} min
               {slot.booked ? " · Réservé" : " · Libre"}
@@ -106,6 +108,7 @@ export function MyAvailabilitiesList({ refreshKey = 0 }: MyAvailabilitiesListPro
           <Button
             variant="outline"
             size="sm"
+            className="shrink-0 bg-card"
             disabled={slot.booked || deletingSlotId === slot.id}
             onClick={() => void handleDelete(slot.id)}
           >

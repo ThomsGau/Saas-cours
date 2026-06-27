@@ -6,13 +6,14 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "availability_slots")
@@ -28,7 +29,7 @@ public class AvailabilitySlot extends BaseEntity {
     private User instructor;
 
     @Column(name = "start_at", nullable = false)
-    private LocalDateTime startAt;
+    private Instant startAt;
 
     @Column(name = "duration_minutes", nullable = false)
     private int durationMinutes;
@@ -36,4 +37,7 @@ public class AvailabilitySlot extends BaseEntity {
     @Column(nullable = false)
     @Builder.Default
     private boolean booked = false;
+
+    @Version
+    private Long version;
 }

@@ -29,6 +29,7 @@ public class StripeWebhookService {
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final PrivateSessionRepository privateSessionRepository;
+    private final SlotLifecycleService slotLifecycleService;
 
     @Transactional
     public void handleEvent(Event event) {
@@ -89,6 +90,12 @@ public class StripeWebhookService {
             if (order.getStatus() == OrderStatus.PENDING) {
                 order.setStatus(OrderStatus.CANCELLED);
                 orderRepository.save(order);
+
+                if (order.getOrderType() == OrderType.PRIVATE_SESSION) {
+                    privateSessionRepository.findByOrderId(order.getId())
+                            .filter(privateSession -> privateSession.getStatus() == SessionStatus.REQUESTED)
+                            .ifPresent(slotLifecycleService::cancelUnpaidSession);
+                }
             }
         });
     }

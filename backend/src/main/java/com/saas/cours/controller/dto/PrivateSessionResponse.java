@@ -2,7 +2,7 @@ package com.saas.cours.controller.dto;
 
 import com.saas.cours.domain.enums.SessionStatus;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public record PrivateSessionResponse(
         Long id,
@@ -10,7 +10,7 @@ public record PrivateSessionResponse(
         String instructorEmail,
         Long studentId,
         String studentEmail,
-        LocalDateTime scheduledAt,
+        Instant scheduledAt,
         int durationMinutes,
         SessionStatus status
 ) {

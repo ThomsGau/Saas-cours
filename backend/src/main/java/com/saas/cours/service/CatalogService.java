@@ -6,6 +6,7 @@ import com.saas.cours.controller.dto.LessonResponse;
 import com.saas.cours.domain.Course;
 import com.saas.cours.domain.Lesson;
 import com.saas.cours.domain.User;
+import com.saas.cours.domain.enums.LessonType;
 import com.saas.cours.domain.enums.SubscriptionStatus;
 import com.saas.cours.exception.ResourceNotFoundException;
 import com.saas.cours.exception.SubscriptionRequiredException;
@@ -16,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -65,8 +67,16 @@ public class CatalogService {
                 course.getTitle(),
                 course.getDescription(),
                 course.getInstructor().getId(),
-                course.getInstructor().getEmail()
+                course.getInstructor().getEmail(),
+                resolvePrimaryLessonType(course)
         );
+    }
+
+    private LessonType resolvePrimaryLessonType(Course course) {
+        return course.getLessons().stream()
+                .min(Comparator.comparing(Lesson::getPosition))
+                .map(Lesson::getLessonType)
+                .orElse(null);
     }
 
     private CourseDetailResponse toDetail(Course course) {

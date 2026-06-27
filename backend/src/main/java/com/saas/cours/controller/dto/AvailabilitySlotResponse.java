@@ -1,6 +1,6 @@
 package com.saas.cours.controller.dto;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public record AvailabilitySlotResponse(
         Long id,
@@ -9,7 +9,7 @@ public record AvailabilitySlotResponse(
         String instructorDisplayName,
         String instructorAvatarUrl,
         String instructorSpecialty,
-        LocalDateTime startAt,
+        Instant startAt,
         int durationMinutes,
         boolean booked
 ) {

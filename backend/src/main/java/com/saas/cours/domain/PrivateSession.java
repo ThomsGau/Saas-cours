@@ -16,7 +16,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "private_sessions")
@@ -35,8 +35,12 @@ public class PrivateSession extends BaseEntity {
     @JoinColumn(name = "student_id", nullable = false)
     private User student;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "availability_slot_id", unique = true)
+    private AvailabilitySlot availabilitySlot;
+
     @Column(name = "scheduled_at", nullable = false)
-    private LocalDateTime scheduledAt;
+    private Instant scheduledAt;
 
     @Column(name = "duration_minutes", nullable = false)
     private int durationMinutes;

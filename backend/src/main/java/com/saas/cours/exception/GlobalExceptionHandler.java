@@ -1,5 +1,6 @@
 package com.saas.cours.exception;
 
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -71,6 +72,15 @@ public class GlobalExceptionHandler {
                 HttpStatus.NOT_FOUND.value(),
                 "Ressource introuvable",
                 ex.getMessage()
+        ));
+    }
+
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<ApiErrorResponse> handleOptimisticLock(OptimisticLockingFailureException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiErrorResponse(
+                HttpStatus.CONFLICT.value(),
+                "Créneau indisponible",
+                "Ce créneau n'est plus disponible."
         ));
     }
 

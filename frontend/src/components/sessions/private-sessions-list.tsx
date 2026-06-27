@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { cancelSession } from "@/lib/api/booking.service";
 import { createPrivateSessionCheckout } from "@/lib/api/payments.service";
 import { ApiError } from "@/lib/api/errors";
 import { formatDateTime } from "@/lib/format/datetime";
@@ -20,13 +21,18 @@ import type { PrivateSession } from "@/lib/api/types";
 type PrivateSessionsListProps = {
   sessions: PrivateSession[];
   variant: "student" | "instructor";
+  onSessionUpdated?: () => void;
 };
 
 export function PrivateSessionsList({
   sessions,
   variant,
+  onSessionUpdated,
 }: PrivateSessionsListProps) {
   const [payingSessionId, setPayingSessionId] = useState<number | null>(null);
+  const [cancellingSessionId, setCancellingSessionId] = useState<number | null>(
+    null,
+  );
 
   if (sessions.length === 0) {
     return (
@@ -55,6 +61,25 @@ export function PrivateSessionsList({
     }
   }
 
+  async function handleCancel(sessionId: number) {
+    setCancellingSessionId(sessionId);
+
+    try {
+      await cancelSession(sessionId);
+      toast.success("Session annulée");
+      onSessionUpdated?.();
+    } catch (error) {
+      const message =
+        error instanceof ApiError
+          ? error.message
+          : "Impossible d'annuler cette session.";
+
+      toast.error("Annulation échouée", { description: message });
+    } finally {
+      setCancellingSessionId(null);
+    }
+  }
+
   return (
     <ul className="space-y-3">
       {sessions.map((session) => {
@@ -80,16 +105,28 @@ export function PrivateSessionsList({
                   min
                 </CardDescription>
               </CardHeader>
-              {variant === "student" && session.status === "REQUESTED" ? (
-                <CardContent className="pt-0">
+              {session.status === "REQUESTED" ? (
+                <CardContent className="flex flex-wrap gap-2 pt-0">
+                  {variant === "student" ? (
+                    <Button
+                      size="sm"
+                      disabled={payingSessionId === session.id}
+                      onClick={() => void handlePay(session.id)}
+                    >
+                      {payingSessionId === session.id
+                        ? "Redirection Stripe..."
+                        : "Payer la session"}
+                    </Button>
+                  ) : null}
                   <Button
                     size="sm"
-                    disabled={payingSessionId === session.id}
-                    onClick={() => void handlePay(session.id)}
+                    variant="outline"
+                    disabled={cancellingSessionId === session.id}
+                    onClick={() => void handleCancel(session.id)}
                   >
-                    {payingSessionId === session.id
-                      ? "Redirection Stripe..."
-                      : "Payer la session"}
+                    {cancellingSessionId === session.id
+                      ? "Annulation..."
+                      : "Annuler"}
                   </Button>
                 </CardContent>
               ) : null}

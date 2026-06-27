@@ -14,6 +14,7 @@ type PageHeaderProps = {
   breadcrumbs?: Breadcrumb[];
   actions?: React.ReactNode;
   className?: string;
+  titleVariant?: "default" | "serif";
 };
 
 export function PageHeader({
@@ -22,6 +23,7 @@ export function PageHeader({
   breadcrumbs,
   actions,
   className,
+  titleVariant = "default",
 }: PageHeaderProps) {
   return (
     <div
@@ -55,7 +57,14 @@ export function PageHeader({
             ))}
           </nav>
         ) : null}
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+        <h1
+          className={cn(
+            "font-semibold tracking-tight",
+            titleVariant === "serif"
+              ? "font-serif text-3xl text-brand-brown-dark sm:text-4xl"
+              : "text-2xl text-foreground sm:text-3xl",
+          )}
+        >
           {title}
         </h1>
         {description ? (

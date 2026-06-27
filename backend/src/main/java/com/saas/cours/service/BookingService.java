@@ -17,7 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -27,7 +27,8 @@ public class BookingService {
     private final AvailabilitySlotRepository availabilitySlotRepository;
     private final PrivateSessionRepository privateSessionRepository;
     private final CurrentUserService currentUserService;
-    private final SessionOverlapChecker overlapChecker;
+    private final SchedulingOverlapChecker overlapChecker;
+    private final SlotLifecycleService slotLifecycleService;
 
     @Transactional
     public PrivateSessionResponse bookSlot(BookSlotRequest request) {
@@ -41,7 +42,7 @@ public class BookingService {
             throw new SlotNotAvailableException("Ce créneau n'est plus disponible.");
         }
 
-        if (slot.getStartAt().isBefore(LocalDateTime.now())) {
+        if (slot.getStartAt().isBefore(Instant.now())) {
             throw new SlotNotAvailableException("Ce créneau est déjà passé.");
         }
 
@@ -49,13 +50,23 @@ public class BookingService {
             throw new ForbiddenActionException("Vous ne pouvez pas réserver votre propre créneau.");
         }
 
-        if (overlapChecker.hasStudentOverlap(student.getId(), slot.getStartAt(), slot.getDurationMinutes())) {
+        if (overlapChecker.hasInstructorSchedulingConflict(
+                slot.getInstructor().getId(),
+                slot.getStartAt(),
+                slot.getDurationMinutes(),
+                slot.getId()
+        )) {
+            throw new SlotNotAvailableException("Ce créneau chevauche une disponibilité ou session existante.");
+        }
+
+        if (overlapChecker.hasStudentSchedulingConflict(student.getId(), slot.getStartAt(), slot.getDurationMinutes())) {
             throw new SlotNotAvailableException("Vous avez déjà une session à ce moment-là.");
         }
 
         PrivateSession session = PrivateSession.builder()
                 .instructor(slot.getInstructor())
                 .student(student)
+                .availabilitySlot(slot)
                 .scheduledAt(slot.getStartAt())
                 .durationMinutes(slot.getDurationMinutes())
                 .status(SessionStatus.REQUESTED)
@@ -66,6 +77,24 @@ public class BookingService {
         availabilitySlotRepository.save(slot);
 
         return toResponse(savedSession);
+    }
+
+    @Transactional
+    public void cancelSession(Long sessionId) {
+        User currentUser = currentUserService.getCurrentUser();
+        PrivateSession session = privateSessionRepository.findByIdWithDetails(sessionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Session introuvable."));
+
+        boolean isStudent = currentUser.getRole() == Role.STUDENT
+                && session.getStudent().getId().equals(currentUser.getId());
+        boolean isInstructor = currentUser.getRole() == Role.INSTRUCTOR
+                && session.getInstructor().getId().equals(currentUser.getId());
+
+        if (!isStudent && !isInstructor) {
+            throw new ForbiddenActionException("Vous ne pouvez pas annuler cette session.");
+        }
+
+        slotLifecycleService.cancelUnpaidSession(session);
     }
 
     @Transactional(readOnly = true)

@@ -23,4 +23,10 @@ public interface PrivateSessionRepository extends JpaRepository<PrivateSession, 
 
     @Query("SELECT ps FROM PrivateSession ps JOIN FETCH ps.instructor JOIN FETCH ps.student LEFT JOIN FETCH ps.order WHERE ps.id = :id AND ps.student.id = :studentId")
     Optional<PrivateSession> findByIdAndStudentIdWithDetails(@Param("id") Long id, @Param("studentId") Long studentId);
+
+    @Query("SELECT ps FROM PrivateSession ps JOIN FETCH ps.instructor JOIN FETCH ps.student LEFT JOIN FETCH ps.availabilitySlot LEFT JOIN FETCH ps.order WHERE ps.id = :id")
+    Optional<PrivateSession> findByIdWithDetails(@Param("id") Long id);
+
+    @Query("SELECT ps FROM PrivateSession ps JOIN FETCH ps.availabilitySlot WHERE ps.order.id = :orderId")
+    Optional<PrivateSession> findByOrderId(@Param("orderId") Long orderId);
 }

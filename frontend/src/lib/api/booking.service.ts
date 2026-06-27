@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from "@/lib/api/client";
+import { apiDelete, apiGet, apiPost } from "@/lib/api/client";
 import { apiEndpoints } from "@/lib/api/endpoints";
 import type { BookSlotRequest, PrivateSession } from "@/lib/api/types";
 
@@ -14,4 +14,8 @@ export async function listMyBookings(): Promise<PrivateSession[]> {
 
 export async function listInstructorSessions(): Promise<PrivateSession[]> {
   return apiGet<PrivateSession[]>(apiEndpoints.bookings.instructorMine);
+}
+
+export async function cancelSession(sessionId: number | string): Promise<void> {
+  await apiDelete(apiEndpoints.bookings.cancel(sessionId));
 }

@@ -25,7 +25,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { createAvailability } from "@/lib/api/instructor.service";
 import { ApiError } from "@/lib/api/errors";
-import { toLocalDateTimeInputValue } from "@/lib/format/datetime";
+import {
+  localDateTimeInputToUtcIso,
+  nextDefaultSlotStart,
+  toLocalDateTimeInputValue,
+} from "@/lib/format/datetime";
+import { cn } from "@/lib/utils";
 
 const availabilitySchema = z.object({
   startAt: z.string().min(1, "Date et heure requises"),
@@ -42,18 +47,19 @@ type CreateAvailabilityFormProps = {
   onCreated: () => void;
 };
 
+function defaultFormValues(): AvailabilityFormValues {
+  return {
+    startAt: toLocalDateTimeInputValue(nextDefaultSlotStart()),
+    durationMinutes: 60,
+  };
+}
+
 export function CreateAvailabilityForm({ onCreated }: CreateAvailabilityFormProps) {
   const [isLoading, setIsLoading] = useState(false);
 
-  const defaultStart = new Date();
-  defaultStart.setHours(defaultStart.getHours() + 1, 0, 0, 0);
-
   const form = useForm<AvailabilityFormValues>({
     resolver: zodResolver(availabilitySchema),
-    defaultValues: {
-      startAt: toLocalDateTimeInputValue(defaultStart),
-      durationMinutes: 60,
-    },
+    defaultValues: defaultFormValues(),
   });
 
   async function onSubmit(values: AvailabilityFormValues) {
@@ -61,15 +67,12 @@ export function CreateAvailabilityForm({ onCreated }: CreateAvailabilityFormProp
 
     try {
       await createAvailability({
-        startAt: values.startAt,
+        startAt: localDateTimeInputToUtcIso(values.startAt),
         durationMinutes: values.durationMinutes,
       });
 
       toast.success("Créneau créé");
-      form.reset({
-        startAt: toLocalDateTimeInputValue(defaultStart),
-        durationMinutes: 60,
-      });
+      form.reset(defaultFormValues());
       onCreated();
     } catch (error) {
       const message =
@@ -84,9 +87,11 @@ export function CreateAvailabilityForm({ onCreated }: CreateAvailabilityFormProp
   }
 
   return (
-    <Card>
+    <Card className="rounded-2xl border-border/50 shadow-soft">
       <CardHeader>
-        <CardTitle>Nouveau créneau</CardTitle>
+        <CardTitle className="font-serif text-brand-brown-dark">
+          Nouveau créneau
+        </CardTitle>
         <CardDescription>
           Ajoutez une disponibilité pour les sessions privées.
         </CardDescription>
@@ -95,7 +100,7 @@ export function CreateAvailabilityForm({ onCreated }: CreateAvailabilityFormProp
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="grid gap-4 sm:grid-cols-2"
+            className="grid gap-4 sm:grid-cols-[1fr_auto]"
           >
             <FormField
               control={form.control}
@@ -114,7 +119,7 @@ export function CreateAvailabilityForm({ onCreated }: CreateAvailabilityFormProp
               control={form.control}
               name="durationMinutes"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="sm:min-w-[160px]">
                   <FormLabel>Durée (minutes)</FormLabel>
                   <FormControl>
                     <Input
@@ -132,7 +137,11 @@ export function CreateAvailabilityForm({ onCreated }: CreateAvailabilityFormProp
               )}
             />
             <div className="sm:col-span-2">
-              <Button type="submit" disabled={isLoading}>
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className={cn("w-full sm:w-auto")}
+              >
                 {isLoading ? "Création..." : "Ajouter le créneau"}
               </Button>
             </div>

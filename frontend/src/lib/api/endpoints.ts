@@ -14,14 +14,27 @@ export const apiEndpoints = {
   },
   instructors: {
     list: "/instructors",
-    availabilities: (instructorId: number | string) =>
+    availabilities: "/availabilities",
+    instructorAvailabilities: (instructorId: number | string) =>
       `/instructors/${instructorId}/availabilities`,
     myAvailabilities: "/me/instructor/availabilities",
     deleteMyAvailability: (slotId: number | string) =>
       `/me/instructor/availabilities/${slotId}`,
+    myCourses: "/me/instructor/courses",
+    myCourse: (courseId: number | string) =>
+      `/me/instructor/courses/${courseId}`,
+    myCourseLessons: (courseId: number | string) =>
+      `/me/instructor/courses/${courseId}/lessons`,
+    deleteMyCourseLesson: (
+      courseId: number | string,
+      lessonId: number | string,
+    ) => `/me/instructor/courses/${courseId}/lessons/${lessonId}`,
+    deleteMyCourse: (courseId: number | string) =>
+      `/me/instructor/courses/${courseId}`,
   },
   bookings: {
     create: "/bookings",
+    cancel: (sessionId: number | string) => `/bookings/${sessionId}/cancel`,
     mine: "/bookings/me",
     instructorMine: "/bookings/instructor/me",
   },

@@ -3,6 +3,10 @@
 import { getInstructorLabel } from "@/components/landing/landing-data";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  formatPriceEur,
+  PRIVATE_SESSION_PRICE_CENTS,
+} from "@/lib/config/pricing";
 import { formatSlotCardDateTime } from "@/lib/format/datetime";
 import type { AvailabilitySlot } from "@/lib/api/types";
 
@@ -50,7 +54,10 @@ export function SessionSlotCard({
         <p className="truncate font-serif font-semibold text-brand-brown-dark">
           {displayName}
         </p>
-        <p className="truncate text-sm text-muted-foreground">{specialty}</p>
+        <p className="truncate text-sm text-muted-foreground">
+          {specialty} · {slot.durationMinutes} min ·{" "}
+          {formatPriceEur(PRIVATE_SESSION_PRICE_CENTS)}
+        </p>
       </div>
 
       <Button

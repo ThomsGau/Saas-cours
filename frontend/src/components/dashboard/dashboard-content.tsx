@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
+import { DashboardWelcome } from "@/components/dashboard/dashboard-welcome";
 import { InstructorDashboard } from "@/components/dashboard/instructor-dashboard";
 import { StudentDashboard } from "@/components/dashboard/student-dashboard";
 import { PageHeader } from "@/components/layout/page-header";
@@ -20,12 +21,13 @@ function DashboardSkeleton() {
   return (
     <div className="space-y-6">
       <Skeleton className="h-10 w-48" />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Skeleton className="h-28 w-full rounded-xl" />
-        <Skeleton className="h-28 w-full rounded-xl" />
-        <Skeleton className="h-28 w-full rounded-xl" />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Skeleton className="h-28 w-full rounded-2xl" />
+        <Skeleton className="h-28 w-full rounded-2xl" />
+        <Skeleton className="h-28 w-full rounded-2xl" />
+        <Skeleton className="h-28 w-full rounded-2xl" />
       </div>
-      <Skeleton className="h-48 w-full rounded-xl" />
+      <Skeleton className="h-48 w-full rounded-2xl" />
     </div>
   );
 }
@@ -52,10 +54,21 @@ export function DashboardContent() {
 
   return (
     <div className="space-y-8">
-      <PageHeader
-        title="Dashboard"
-        description={`Connecté en tant que ${session.user.email} (${role})`}
-      />
+      {role === "STUDENT" ? (
+        <DashboardWelcome displayName={session.user.displayName} />
+      ) : role === "INSTRUCTOR" ? (
+        <PageHeader
+          title="Dashboard"
+          titleVariant="serif"
+          description={`Connecté en tant que ${session.user.email} (${role})`}
+          className="mb-0"
+        />
+      ) : (
+        <PageHeader
+          title="Dashboard"
+          description={`Connecté en tant que ${session.user.email} (${role})`}
+        />
+      )}
 
       {role === "STUDENT" ? (
         <StudentDashboard />

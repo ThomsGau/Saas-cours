@@ -44,6 +44,7 @@ export type CourseSummary = {
   description: string | null;
   instructorId: number;
   instructorEmail: string;
+  primaryLessonType: "VIDEO" | "PDF" | null;
 };
 
 export type Lesson = {
@@ -104,4 +105,17 @@ export type BookSlotRequest = {
 export type CreateAvailabilityRequest = {
   startAt: string;
   durationMinutes: number;
+};
+
+export type CreateCourseRequest = {
+  title: string;
+  description?: string | null;
+};
+
+export type CreateLessonRequest = {
+  title: string;
+  description?: string | null;
+  lessonType: "VIDEO" | "PDF";
+  contentUrl: string;
+  durationMinutes?: number | null;
 };

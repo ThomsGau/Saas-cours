@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,6 +27,12 @@ public class BookingController {
     @ResponseStatus(HttpStatus.CREATED)
     public PrivateSessionResponse bookSlot(@Valid @RequestBody BookSlotRequest request) {
         return bookingService.bookSlot(request);
+    }
+
+    @PostMapping("/{sessionId}/cancel")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void cancelSession(@PathVariable Long sessionId) {
+        bookingService.cancelSession(sessionId);
     }
 
     @GetMapping("/me")

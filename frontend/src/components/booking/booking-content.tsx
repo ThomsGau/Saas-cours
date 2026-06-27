@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { bookSlot } from "@/lib/api/booking.service";
-import { listInstructorAvailabilities, listInstructors } from "@/lib/api/instructor.service";
+import { listAvailableSlots } from "@/lib/api/instructor.service";
 import { createPrivateSessionCheckout } from "@/lib/api/payments.service";
 import { ApiError } from "@/lib/api/errors";
 import type { AvailabilitySlot } from "@/lib/api/types";
@@ -47,6 +47,24 @@ export function BookingContent() {
   const [bookingSlotId, setBookingSlotId] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const loadSlots = useCallback(async () => {
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const data = await listAvailableSlots();
+      setSlots(data);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Impossible de charger les créneaux.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (status === "loading") {
       return;
@@ -61,50 +79,8 @@ export function BookingContent() {
       return;
     }
 
-    let cancelled = false;
-
-    async function loadAllSlots() {
-      setIsLoading(true);
-      setErrorMessage(null);
-
-      try {
-        const instructors = await listInstructors();
-        const availabilityLists = await Promise.all(
-          instructors.map((instructor) =>
-            listInstructorAvailabilities(instructor.id),
-          ),
-        );
-        const merged = availabilityLists
-          .flat()
-          .sort(
-            (a, b) =>
-              new Date(a.startAt).getTime() - new Date(b.startAt).getTime(),
-          );
-
-        if (!cancelled) {
-          setSlots(merged);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setErrorMessage(
-            error instanceof Error
-              ? error.message
-              : "Impossible de charger les créneaux.",
-          );
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    void loadAllSlots();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [router, session?.user.role, status]);
+    void loadSlots();
+  }, [loadSlots, router, session?.user.role, status]);
 
   if (status === "loading" || isLoading) {
     return <BookingSkeleton />;
@@ -136,8 +112,26 @@ export function BookingContent() {
 
     try {
       const privateSession = await bookSlot({ availabilitySlotId: slotId });
-      const checkout = await createPrivateSessionCheckout(privateSession.id);
-      window.location.href = checkout.checkoutUrl;
+
+      try {
+        const checkout = await createPrivateSessionCheckout(privateSession.id);
+        window.location.href = checkout.checkoutUrl;
+      } catch (checkoutError) {
+        await loadSlots();
+        const message =
+          checkoutError instanceof ApiError
+            ? checkoutError.message
+            : "Impossible de démarrer le paiement.";
+
+        toast.error("Paiement impossible", {
+          description: message,
+          action: {
+            label: "Dashboard",
+            onClick: () => router.push("/dashboard"),
+          },
+        });
+        setBookingSlotId(null);
+      }
     } catch (error) {
       const message =
         error instanceof ApiError
