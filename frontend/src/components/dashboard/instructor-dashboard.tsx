@@ -32,6 +32,8 @@ export function InstructorDashboard() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [availabilityRefreshKey, setAvailabilityRefreshKey] = useState(0);
   const [courseRefreshKey, setCourseRefreshKey] = useState(0);
+  const [expandCourseId, setExpandCourseId] = useState<number | null>(null);
+  const [scrollToAddLesson, setScrollToAddLesson] = useState(false);
 
   const loadSessions = useCallback(async () => {
     setIsLoading(true);
@@ -113,13 +115,17 @@ export function InstructorDashboard() {
             Catalogue — Mes cours
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Créez des cours et ajoutez-y des leçons PDF ou vidéo YouTube via un
-            lien. Ils sont publiés immédiatement dans le catalogue.
+            Créez des cours en brouillon, ajoutez-y des leçons PDF ou vidéo
+            YouTube via un lien, puis publiez-les dans le catalogue.
           </p>
         </div>
 
         <CreateCourseForm
-          onCreated={() => setCourseRefreshKey((key) => key + 1)}
+          onCreated={(courseId) => {
+            setCourseRefreshKey((key) => key + 1);
+            setExpandCourseId(courseId);
+            setScrollToAddLesson(true);
+          }}
         />
 
         <Card className="rounded-2xl border-border/50 shadow-soft">
@@ -128,11 +134,19 @@ export function InstructorDashboard() {
               Mes cours
             </CardTitle>
             <CardDescription>
-              Dépliez un cours pour gérer ses leçons.
+              Dépliez un cours pour gérer ses leçons et le publier.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <MyCoursesList refreshKey={courseRefreshKey} />
+            <MyCoursesList
+              refreshKey={courseRefreshKey}
+              expandCourseId={expandCourseId}
+              scrollToAddLesson={scrollToAddLesson}
+              onExpandHandled={() => {
+                setExpandCourseId(null);
+                setScrollToAddLesson(false);
+              }}
+            />
           </CardContent>
         </Card>
       </section>

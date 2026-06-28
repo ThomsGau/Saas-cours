@@ -14,16 +14,15 @@ import {
 } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { listCourses } from "@/lib/api/catalog.service";
+import { getProfile } from "@/lib/api/user.service";
 import { ApiError } from "@/lib/api/errors";
 import {
-  CATALOG_COURSES,
   filterAndSortCourses,
-  mergeApiCourses,
+  mapApiCourses,
   type CatalogCourse,
   type CatalogCourseType,
   type CatalogSortOption,
 } from "@/lib/catalog/catalog-data";
-import { isSubscriptionActive } from "@/lib/subscription/check-subscription";
 
 function CourseListSkeleton() {
   return (
@@ -33,11 +32,6 @@ function CourseListSkeleton() {
         <div className="flex flex-wrap gap-2">
           {Array.from({ length: 3 }).map((_, index) => (
             <Skeleton key={index} className="h-9 w-24 rounded-full" />
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {Array.from({ length: 7 }).map((_, index) => (
-            <Skeleton key={index} className="h-9 w-28 rounded-full" />
           ))}
         </div>
         <Skeleton className="h-4 w-32" />
@@ -73,8 +67,7 @@ export function CoursesContent() {
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | CatalogCourseType>("all");
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [sort, setSort] = useState<CatalogSortOption>("popular");
+  const [sort, setSort] = useState<CatalogSortOption>("title");
 
   useEffect(() => {
     if (status === "loading") {
@@ -93,29 +86,54 @@ export function CoursesContent() {
       setErrorMessage(null);
 
       try {
-        const subscribed = await isSubscriptionActive();
+        let profile;
+        try {
+          profile = await getProfile();
+        } catch (error) {
+          if (cancelled) {
+            return;
+          }
+
+          if (error instanceof ApiError && error.status === 401) {
+            router.replace("/login?callbackUrl=/courses");
+            return;
+          }
+
+          throw error;
+        }
 
         if (cancelled) {
           return;
         }
 
-        setIsSubscribed(subscribed);
+        setIsSubscribed(profile.subscriptionStatus === "ACTIVE");
 
-        if (subscribed) {
+        try {
           const apiCourses = await listCourses();
-          if (!cancelled) {
-            setCourses(mergeApiCourses(apiCourses));
+          if (cancelled) {
+            return;
           }
-        } else {
-          setCourses(CATALOG_COURSES);
+          setCourses(mapApiCourses(apiCourses));
+        } catch (error) {
+          if (cancelled) {
+            return;
+          }
+
+          if (error instanceof ApiError && error.status === 403) {
+            setIsSubscribed(false);
+            setCourses([]);
+            return;
+          }
+
+          if (error instanceof ApiError && error.status === 401) {
+            router.replace("/login?callbackUrl=/courses");
+            return;
+          }
+
+          throw error;
         }
       } catch (error) {
         if (cancelled) {
-          return;
-        }
-
-        if (error instanceof ApiError && error.status === 401) {
-          router.replace("/login?callbackUrl=/courses");
           return;
         }
 
@@ -143,10 +161,9 @@ export function CoursesContent() {
       filterAndSortCourses(courses, {
         search,
         typeFilter,
-        categoryFilter,
         sort,
       }),
-    [courses, search, typeFilter, categoryFilter, sort],
+    [courses, search, typeFilter, sort],
   );
 
   if (status === "loading" || isLoading) {
@@ -169,8 +186,6 @@ export function CoursesContent() {
         onSearchChange={setSearch}
         typeFilter={typeFilter}
         onTypeFilterChange={setTypeFilter}
-        categoryFilter={categoryFilter}
-        onCategoryFilterChange={setCategoryFilter}
         sort={sort}
         onSortChange={setSort}
         resultsCount={filteredCourses.length}

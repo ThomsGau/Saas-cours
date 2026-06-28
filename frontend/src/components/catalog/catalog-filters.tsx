@@ -17,7 +17,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  CATALOG_CATEGORIES,
   type CatalogCourseType,
   type CatalogSortOption,
 } from "@/lib/catalog/catalog-data";
@@ -28,8 +27,6 @@ type CatalogFiltersProps = {
   onSearchChange: (value: string) => void;
   typeFilter: "all" | CatalogCourseType;
   onTypeFilterChange: (value: "all" | CatalogCourseType) => void;
-  categoryFilter: string;
-  onCategoryFilterChange: (value: string) => void;
   sort: CatalogSortOption;
   onSortChange: (value: CatalogSortOption) => void;
   resultsCount: number;
@@ -46,10 +43,9 @@ const TYPE_FILTERS: Array<{
 ];
 
 const SORT_OPTIONS: Array<{ value: CatalogSortOption; label: string }> = [
-  { value: "popular", label: "Les plus populaires" },
-  { value: "rating", label: "Mieux notés" },
-  { value: "price-asc", label: "Prix croissant" },
-  { value: "price-desc", label: "Prix décroissant" },
+  { value: "title", label: "Titre (A → Z)" },
+  { value: "level", label: "Niveau" },
+  { value: "duration", label: "Durée" },
 ];
 
 function FilterChip({
@@ -85,8 +81,6 @@ export function CatalogFilters({
   onSearchChange,
   typeFilter,
   onTypeFilterChange,
-  categoryFilter,
-  onCategoryFilterChange,
   sort,
   onSortChange,
   resultsCount,
@@ -140,32 +134,6 @@ export function CatalogFilters({
             </FilterChip>
           );
         })}
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <FilterChip
-          active={categoryFilter === "all"}
-          onClick={() => onCategoryFilterChange("all")}
-          className={cn(
-            categoryFilter === "all" &&
-              "bg-brand-orange text-white hover:bg-brand-orange",
-          )}
-        >
-          Toutes
-        </FilterChip>
-        {CATALOG_CATEGORIES.map((category) => (
-          <FilterChip
-            key={category}
-            active={categoryFilter === category}
-            onClick={() => onCategoryFilterChange(category)}
-            className={cn(
-              categoryFilter === category &&
-                "bg-brand-orange text-white hover:bg-brand-orange",
-            )}
-          >
-            {category}
-          </FilterChip>
-        ))}
       </div>
 
       <p className="text-sm text-muted-foreground">

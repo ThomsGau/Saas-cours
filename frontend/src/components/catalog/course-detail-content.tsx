@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { ArrowLeftIcon } from "lucide-react";
 
 import { LessonList } from "@/components/catalog/lesson-list";
+import { PdfViewer } from "@/components/catalog/pdf-viewer";
 import { VideoPlayer } from "@/components/catalog/video-player";
 import { PageHeader } from "@/components/layout/page-header";
 import {
@@ -23,9 +24,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getCourse } from "@/lib/api/catalog.service";
+import { getCourse, getLesson } from "@/lib/api/catalog.service";
 import { handleCatalogError } from "@/lib/catalog/handle-catalog-error";
-import type { CourseDetail, Lesson } from "@/lib/api/types";
+import type { CourseDetail, Lesson, LessonPreview } from "@/lib/api/types";
 
 function CourseDetailSkeleton() {
   return (
@@ -38,6 +39,10 @@ function CourseDetailSkeleton() {
   );
 }
 
+function LessonContentSkeleton() {
+  return <Skeleton className="aspect-video w-full rounded-lg" />;
+}
+
 export function CourseDetailContent() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -46,9 +51,38 @@ export function CourseDetailContent() {
   const { status } = useSession();
 
   const [course, setCourse] = useState<CourseDetail | null>(null);
-  const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [selectedLesson, setSelectedLesson] = useState<LessonPreview | null>(
+    null,
+  );
+  const [lessonContent, setLessonContent] = useState<Lesson | null>(null);
+  const [isLoadingCourse, setIsLoadingCourse] = useState(true);
+  const [isLoadingLesson, setIsLoadingLesson] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const loadLessonContent = useCallback(
+    async (lesson: LessonPreview) => {
+      setIsLoadingLesson(true);
+      setLessonContent(null);
+
+      try {
+        const data = await getLesson(courseId, lesson.id);
+        setLessonContent(data);
+      } catch (error) {
+        if (handleCatalogError(error, router, callbackUrl)) {
+          return;
+        }
+
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Impossible de charger cette leçon.",
+        );
+      } finally {
+        setIsLoadingLesson(false);
+      }
+    },
+    [callbackUrl, courseId, router],
+  );
 
   useEffect(() => {
     if (status === "loading") {
@@ -63,7 +97,7 @@ export function CourseDetailContent() {
     let cancelled = false;
 
     async function loadCourse() {
-      setIsLoading(true);
+      setIsLoadingCourse(true);
       setErrorMessage(null);
 
       try {
@@ -77,7 +111,12 @@ export function CourseDetailContent() {
         );
 
         setCourse(data);
-        setSelectedLesson(sortedLessons[0] ?? null);
+        const firstLesson = sortedLessons[0] ?? null;
+        setSelectedLesson(firstLesson);
+
+        if (firstLesson) {
+          await loadLessonContent(firstLesson);
+        }
       } catch (error) {
         if (cancelled) {
           return;
@@ -94,7 +133,7 @@ export function CourseDetailContent() {
         );
       } finally {
         if (!cancelled) {
-          setIsLoading(false);
+          setIsLoadingCourse(false);
         }
       }
     }
@@ -104,9 +143,14 @@ export function CourseDetailContent() {
     return () => {
       cancelled = true;
     };
-  }, [callbackUrl, courseId, router, status]);
+  }, [callbackUrl, courseId, loadLessonContent, router, status]);
 
-  if (status === "loading" || isLoading) {
+  const handleSelectLesson = (lesson: LessonPreview) => {
+    setSelectedLesson(lesson);
+    void loadLessonContent(lesson);
+  };
+
+  if (status === "loading" || isLoadingCourse) {
     return <CourseDetailSkeleton />;
   }
 
@@ -180,31 +224,22 @@ export function CourseDetailContent() {
               <p className="text-sm text-muted-foreground">
                 Ce cours ne contient pas encore de leçons.
               </p>
-            ) : selectedLesson.lessonType === "VIDEO" ? (
+            ) : isLoadingLesson ? (
+              <LessonContentSkeleton />
+            ) : !lessonContent ? (
+              <p className="text-sm text-muted-foreground">
+                Impossible de charger le contenu de cette leçon.
+              </p>
+            ) : lessonContent.lessonType === "VIDEO" ? (
               <VideoPlayer
-                src={selectedLesson.contentUrl}
-                title={selectedLesson.title}
+                src={lessonContent.contentUrl}
+                title={lessonContent.title}
               />
             ) : (
-              <div className="space-y-4">
-                <iframe
-                  src={selectedLesson.contentUrl}
-                  title={selectedLesson.title}
-                  className="aspect-[4/3] w-full rounded-lg border border-border/60 bg-muted shadow-soft"
-                />
-                <Button
-                  variant="outline"
-                  render={
-                    <a
-                      href={selectedLesson.contentUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    />
-                  }
-                >
-                  Ouvrir le PDF dans un nouvel onglet
-                </Button>
-              </div>
+              <PdfViewer
+                src={lessonContent.contentUrl}
+                title={lessonContent.title}
+              />
             )}
           </CardContent>
         </Card>
@@ -221,7 +256,7 @@ export function CourseDetailContent() {
             <LessonList
               lessons={course.lessons}
               selectedLessonId={selectedLesson?.id ?? null}
-              onSelectLesson={setSelectedLesson}
+              onSelectLesson={handleSelectLesson}
             />
           </CardContent>
         </Card>

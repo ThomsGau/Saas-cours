@@ -17,7 +17,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -27,12 +26,12 @@ public class CatalogService {
     private final CourseRepository courseRepository;
     private final LessonRepository lessonRepository;
     private final CurrentUserService currentUserService;
+    private final CourseMapper courseMapper;
 
     @Transactional(readOnly = true)
     public List<CourseSummaryResponse> listPublishedCourses() {
-        requireActiveSubscription();
         return courseRepository.findByPublishedTrueOrderByTitleAsc().stream()
-                .map(this::toSummary)
+                .map(courseMapper::toSummary)
                 .toList();
     }
 
@@ -41,7 +40,7 @@ public class CatalogService {
         requireActiveSubscription();
         Course course = courseRepository.findPublishedWithLessonsById(courseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Cours introuvable."));
-        return toDetail(course);
+        return courseMapper.toDetail(course);
     }
 
     @Transactional(readOnly = true)
@@ -51,7 +50,7 @@ public class CatalogService {
                 .orElseThrow(() -> new ResourceNotFoundException("Cours introuvable."));
         Lesson lesson = lessonRepository.findByIdAndCourseId(lessonId, courseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Leçon introuvable."));
-        return toLessonResponse(lesson);
+        return courseMapper.toLessonResponse(lesson);
     }
 
     private void requireActiveSubscription() {
@@ -59,49 +58,5 @@ public class CatalogService {
         if (user.getSubscriptionStatus() != SubscriptionStatus.ACTIVE) {
             throw new SubscriptionRequiredException();
         }
-    }
-
-    private CourseSummaryResponse toSummary(Course course) {
-        return new CourseSummaryResponse(
-                course.getId(),
-                course.getTitle(),
-                course.getDescription(),
-                course.getInstructor().getId(),
-                course.getInstructor().getEmail(),
-                resolvePrimaryLessonType(course)
-        );
-    }
-
-    private LessonType resolvePrimaryLessonType(Course course) {
-        return course.getLessons().stream()
-                .min(Comparator.comparing(Lesson::getPosition))
-                .map(Lesson::getLessonType)
-                .orElse(null);
-    }
-
-    private CourseDetailResponse toDetail(Course course) {
-        List<LessonResponse> lessons = course.getLessons().stream()
-                .map(this::toLessonResponse)
-                .toList();
-        return new CourseDetailResponse(
-                course.getId(),
-                course.getTitle(),
-                course.getDescription(),
-                course.getInstructor().getId(),
-                course.getInstructor().getEmail(),
-                lessons
-        );
-    }
-
-    private LessonResponse toLessonResponse(Lesson lesson) {
-        return new LessonResponse(
-                lesson.getId(),
-                lesson.getTitle(),
-                lesson.getDescription(),
-                lesson.getLessonType(),
-                lesson.getContentUrl(),
-                lesson.getPosition(),
-                lesson.getDurationMinutes()
-        );
     }
 }

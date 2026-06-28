@@ -48,7 +48,8 @@ public class UserService {
         return new UserProfileResponse(
                 user.getEmail(),
                 user.getRole(),
-                DisplayNameFormatter.resolveDisplayName(user)
+                DisplayNameFormatter.resolveDisplayName(user),
+                user.getSubscriptionStatus()
         );
     }
 }

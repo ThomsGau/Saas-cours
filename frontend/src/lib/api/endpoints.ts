@@ -29,6 +29,10 @@ export const apiEndpoints = {
       courseId: number | string,
       lessonId: number | string,
     ) => `/me/instructor/courses/${courseId}/lessons/${lessonId}`,
+    updateMyCourseLesson: (
+      courseId: number | string,
+      lessonId: number | string,
+    ) => `/me/instructor/courses/${courseId}/lessons/${lessonId}`,
     deleteMyCourse: (courseId: number | string) =>
       `/me/instructor/courses/${courseId}`,
   },

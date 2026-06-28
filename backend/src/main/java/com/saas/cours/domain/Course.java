@@ -1,8 +1,11 @@
 package com.saas.cours.domain;
 
+import com.saas.cours.domain.enums.CourseLevel;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -32,6 +35,11 @@ public class Course extends BaseEntity {
 
     @Column(columnDefinition = "TEXT")
     private String description;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 32)
+    @Builder.Default
+    private CourseLevel level = CourseLevel.DEBUTANT;
 
     @Column(nullable = false)
     @Builder.Default

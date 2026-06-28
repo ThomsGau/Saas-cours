@@ -1,16 +1,19 @@
 package com.saas.cours.controller;
 
-import com.saas.cours.controller.dto.CourseDetailResponse;
+import com.saas.cours.controller.dto.InstructorCourseDetailResponse;
 import com.saas.cours.controller.dto.CourseSummaryResponse;
 import com.saas.cours.controller.dto.CreateCourseRequest;
 import com.saas.cours.controller.dto.CreateLessonRequest;
 import com.saas.cours.controller.dto.LessonResponse;
+import com.saas.cours.controller.dto.UpdateCourseRequest;
+import com.saas.cours.controller.dto.UpdateLessonRequest;
 import com.saas.cours.service.InstructorCatalogService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -29,7 +32,7 @@ public class InstructorCatalogController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public CourseDetailResponse createCourse(@Valid @RequestBody CreateCourseRequest request) {
+    public InstructorCourseDetailResponse createCourse(@Valid @RequestBody CreateCourseRequest request) {
         return instructorCatalogService.createCourse(request);
     }
 
@@ -39,8 +42,16 @@ public class InstructorCatalogController {
     }
 
     @GetMapping("/{courseId}")
-    public CourseDetailResponse getMyCourse(@PathVariable Long courseId) {
+    public InstructorCourseDetailResponse getMyCourse(@PathVariable Long courseId) {
         return instructorCatalogService.getMyCourse(courseId);
+    }
+
+    @PatchMapping("/{courseId}")
+    public InstructorCourseDetailResponse updateCourse(
+            @PathVariable Long courseId,
+            @Valid @RequestBody UpdateCourseRequest request
+    ) {
+        return instructorCatalogService.updateCourse(courseId, request);
     }
 
     @PostMapping("/{courseId}/lessons")
@@ -50,6 +61,15 @@ public class InstructorCatalogController {
             @Valid @RequestBody CreateLessonRequest request
     ) {
         return instructorCatalogService.addLesson(courseId, request);
+    }
+
+    @PatchMapping("/{courseId}/lessons/{lessonId}")
+    public LessonResponse updateLesson(
+            @PathVariable Long courseId,
+            @PathVariable Long lessonId,
+            @Valid @RequestBody UpdateLessonRequest request
+    ) {
+        return instructorCatalogService.updateLesson(courseId, lessonId, request);
     }
 
     @DeleteMapping("/{courseId}/lessons/{lessonId}")

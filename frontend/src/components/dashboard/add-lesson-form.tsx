@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -26,53 +26,93 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { addLesson } from "@/lib/api/catalog-instructor.service";
 import { ApiError } from "@/lib/api/errors";
+import { applyApiFieldErrors } from "@/lib/api/form-errors";
+import { isValidPdfUrl, isValidYouTubeUrl } from "@/lib/validation/lesson-url";
 
-const lessonSchema = z.object({
-  title: z
-    .string()
-    .trim()
-    .min(1, "Titre requis")
-    .max(255, "Maximum 255 caractères"),
-  description: z.string().trim().max(5000, "Description trop longue").optional(),
-  kind: z.enum(["YOUTUBE", "PDF"]),
-  contentUrl: z
-    .string()
-    .trim()
-    .min(1, "Lien requis")
-    .max(2048, "Lien trop long")
-    .url("Lien invalide"),
-  durationMinutes: z
-    .number({ error: "Durée invalide" })
-    .int()
-    .min(1, "Minimum 1 minute")
-    .max(100000)
-    .optional(),
-});
+const lessonSchema = z
+  .object({
+    title: z
+      .string()
+      .trim()
+      .min(1, "Titre requis")
+      .max(255, "Maximum 255 caractères"),
+    description: z.string().trim().max(5000, "Description trop longue").optional(),
+    kind: z.enum(["VIDEO", "PDF"]),
+    contentUrl: z
+      .string()
+      .trim()
+      .min(1, "Lien requis")
+      .max(2048, "Lien trop long")
+      .url("Lien invalide"),
+    durationMinutes: z
+      .number({ error: "Durée invalide" })
+      .int()
+      .min(1, "Minimum 1 minute")
+      .max(100000)
+      .optional(),
+  })
+  .superRefine((values, ctx) => {
+    if (values.kind === "VIDEO") {
+      if (!isValidYouTubeUrl(values.contentUrl)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["contentUrl"],
+          message: "Lien YouTube invalide.",
+        });
+      }
+      if (values.durationMinutes == null) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["durationMinutes"],
+          message: "Durée obligatoire pour une leçon vidéo.",
+        });
+      }
+    } else if (!isValidPdfUrl(values.contentUrl)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["contentUrl"],
+        message: "Lien PDF invalide (https://…/fichier.pdf requis).",
+      });
+    }
+  });
 
 type LessonFormValues = z.infer<typeof lessonSchema>;
 
 type AddLessonFormProps = {
   courseId: number;
+  lockedLessonType?: "VIDEO" | "PDF" | null;
   onAdded: () => void;
 };
 
-function defaultLessonValues(): LessonFormValues {
+function defaultLessonValues(
+  lockedLessonType?: "VIDEO" | "PDF" | null,
+): LessonFormValues {
   return {
     title: "",
     description: "",
-    kind: "YOUTUBE",
+    kind: lockedLessonType ?? "VIDEO",
     contentUrl: "",
     durationMinutes: undefined,
   };
 }
 
-export function AddLessonForm({ courseId, onAdded }: AddLessonFormProps) {
+export function AddLessonForm({
+  courseId,
+  lockedLessonType = null,
+  onAdded,
+}: AddLessonFormProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<LessonFormValues>({
     resolver: zodResolver(lessonSchema),
-    defaultValues: defaultLessonValues(),
+    defaultValues: defaultLessonValues(lockedLessonType),
   });
+
+  useEffect(() => {
+    if (lockedLessonType) {
+      form.setValue("kind", lockedLessonType);
+    }
+  }, [form, lockedLessonType]);
 
   async function onSubmit(values: LessonFormValues) {
     setIsLoading(true);
@@ -81,15 +121,23 @@ export function AddLessonForm({ courseId, onAdded }: AddLessonFormProps) {
       await addLesson(courseId, {
         title: values.title,
         description: values.description?.trim() ? values.description : null,
-        lessonType: values.kind === "PDF" ? "PDF" : "VIDEO",
+        lessonType: values.kind,
         contentUrl: values.contentUrl,
-        durationMinutes: values.durationMinutes ?? null,
+        durationMinutes:
+          values.kind === "VIDEO" ? (values.durationMinutes ?? null) : null,
       });
 
       toast.success("Leçon ajoutée");
-      form.reset(defaultLessonValues());
+      form.reset(defaultLessonValues(lockedLessonType));
       onAdded();
     } catch (error) {
+      if (applyApiFieldErrors(error, form.setError, { lessonType: "kind" })) {
+        toast.error("Ajout échoué", {
+          description: "Corrigez les champs indiqués.",
+        });
+        return;
+      }
+
       const message =
         error instanceof ApiError
           ? error.message
@@ -102,6 +150,7 @@ export function AddLessonForm({ courseId, onAdded }: AddLessonFormProps) {
   }
 
   const kind = form.watch("kind");
+  const isTypeLocked = lockedLessonType != null;
   const urlPlaceholder =
     kind === "PDF"
       ? "https://exemple.com/document.pdf"
@@ -110,6 +159,7 @@ export function AddLessonForm({ courseId, onAdded }: AddLessonFormProps) {
   return (
     <Form {...form}>
       <form
+        id={`add-lesson-form-${courseId}`}
         onSubmit={form.handleSubmit(onSubmit)}
         className="space-y-4 rounded-xl border border-border/50 bg-muted/20 p-4"
       >
@@ -133,17 +183,26 @@ export function AddLessonForm({ courseId, onAdded }: AddLessonFormProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Type</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select
+                  onValueChange={field.onChange}
+                  value={field.value}
+                  disabled={isTypeLocked}
+                >
                   <FormControl>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Choisir un type" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="YOUTUBE">Vidéo YouTube</SelectItem>
+                    <SelectItem value="VIDEO">Vidéo YouTube</SelectItem>
                     <SelectItem value="PDF">PDF</SelectItem>
                   </SelectContent>
                 </Select>
+                {isTypeLocked ? (
+                  <p className="text-xs text-muted-foreground">
+                    Le type est fixé par la première leçon de ce cours.
+                  </p>
+                ) : null}
                 <FormMessage />
               </FormItem>
             )}
@@ -163,32 +222,34 @@ export function AddLessonForm({ courseId, onAdded }: AddLessonFormProps) {
           )}
         />
         <div className="grid gap-4 sm:grid-cols-2">
-          <FormField
-            control={form.control}
-            name="durationMinutes"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Durée en minutes (optionnel)</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={field.value ?? ""}
-                    onChange={(event) => {
-                      const value = event.target.valueAsNumber;
-                      field.onChange(Number.isNaN(value) ? undefined : value);
-                    }}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {kind === "VIDEO" ? (
+            <FormField
+              control={form.control}
+              name="durationMinutes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Durée en minutes</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={field.value ?? ""}
+                      onChange={(event) => {
+                        const value = event.target.valueAsNumber;
+                        field.onChange(Number.isNaN(value) ? undefined : value);
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          ) : null}
           <FormField
             control={form.control}
             name="description"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className={kind === "PDF" ? "sm:col-span-2" : undefined}>
                 <FormLabel>Description (optionnel)</FormLabel>
                 <FormControl>
                   <Textarea

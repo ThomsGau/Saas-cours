@@ -23,9 +23,19 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { createCourse } from "@/lib/api/catalog-instructor.service";
 import { ApiError } from "@/lib/api/errors";
+import { applyApiFieldErrors } from "@/lib/api/form-errors";
+import { COURSE_LEVELS } from "@/lib/catalog/catalog-data";
+import type { CourseLevel } from "@/lib/api/types";
 
 const courseSchema = z.object({
   title: z
@@ -34,12 +44,16 @@ const courseSchema = z.object({
     .min(1, "Titre requis")
     .max(255, "Maximum 255 caractères"),
   description: z.string().trim().max(5000, "Description trop longue").optional(),
+  level: z.enum(["Débutant", "Intermédiaire", "Avancé"] satisfies [
+    CourseLevel,
+    ...CourseLevel[],
+  ]),
 });
 
 type CourseFormValues = z.infer<typeof courseSchema>;
 
 type CreateCourseFormProps = {
-  onCreated: () => void;
+  onCreated: (courseId: number) => void;
 };
 
 export function CreateCourseForm({ onCreated }: CreateCourseFormProps) {
@@ -47,22 +61,32 @@ export function CreateCourseForm({ onCreated }: CreateCourseFormProps) {
 
   const form = useForm<CourseFormValues>({
     resolver: zodResolver(courseSchema),
-    defaultValues: { title: "", description: "" },
+    defaultValues: { title: "", description: "", level: "Débutant" },
   });
 
   async function onSubmit(values: CourseFormValues) {
     setIsLoading(true);
 
     try {
-      await createCourse({
+      const course = await createCourse({
         title: values.title,
         description: values.description?.trim() ? values.description : null,
+        level: values.level,
       });
 
-      toast.success("Cours créé");
-      form.reset({ title: "", description: "" });
-      onCreated();
+      toast.success("Cours créé en brouillon", {
+        description: "Ajoutez au moins une leçon pour le publier dans le catalogue.",
+      });
+      form.reset({ title: "", description: "", level: "Débutant" });
+      onCreated(course.id);
     } catch (error) {
+      if (applyApiFieldErrors(error, form.setError)) {
+        toast.error("Création échouée", {
+          description: "Corrigez les champs indiqués.",
+        });
+        return;
+      }
+
       const message =
         error instanceof ApiError
           ? error.message
@@ -81,7 +105,8 @@ export function CreateCourseForm({ onCreated }: CreateCourseFormProps) {
           Nouveau cours
         </CardTitle>
         <CardDescription>
-          Créez un cours, puis ajoutez-y des leçons PDF ou vidéo YouTube.
+          Créez un cours en brouillon, puis ajoutez-y des leçons PDF ou vidéo
+          YouTube. Il sera publié automatiquement à la première leçon.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -112,6 +137,30 @@ export function CreateCourseForm({ onCreated }: CreateCourseFormProps) {
                       {...field}
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="level"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Niveau du cours</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger className="w-full sm:max-w-xs">
+                        <SelectValue placeholder="Choisir un niveau" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {COURSE_LEVELS.map((level) => (
+                        <SelectItem key={level} value={level}>
+                          {level}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

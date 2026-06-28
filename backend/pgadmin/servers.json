@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "SaaS Cours",
+      "Group": "Development",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "saas_cours",
+      "Username": "saas",
+      "Password": "saas",
+      "SSLMode": "prefer"
+    }
+  }
+}

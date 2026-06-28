@@ -4,7 +4,6 @@ import {
   BookOpenIcon,
   ClockIcon,
   FileTextIcon,
-  StarIcon,
   VideoIcon,
 } from "lucide-react";
 
@@ -17,27 +16,6 @@ type CourseCardProps = {
   isSubscribed: boolean;
   onSubscribeRequest: () => void;
 };
-
-function StarRating({ rating }: { rating: number }) {
-  return (
-    <div className="flex items-center gap-1">
-      <span className="text-sm font-medium text-foreground">{rating}</span>
-      <div className="flex">
-        {Array.from({ length: 5 }).map((_, index) => (
-          <StarIcon
-            key={index}
-            className={cn(
-              "size-3.5",
-              index < Math.floor(rating)
-                ? "fill-brand-orange text-brand-orange"
-                : "fill-muted text-muted",
-            )}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function CourseCardContent({
   course,
@@ -63,52 +41,38 @@ function CourseCardContent({
           )}
           sizes="(max-width: 640px) 100vw, 33vw"
         />
-        <div className="absolute inset-x-0 top-0 flex items-start justify-between p-3">
-          <span className="inline-flex items-center gap-1 rounded-md bg-card/90 px-2 py-1 text-xs font-medium text-foreground backdrop-blur-sm">
-            <TypeIcon className="size-3" />
-            {typeLabel}
-          </span>
-          {course.bestseller ? (
-            <span className="rounded-md bg-brand-orange px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
-              Bestseller
+        {course.type ? (
+          <div className="absolute inset-x-0 top-0 flex items-start justify-between p-3">
+            <span className="inline-flex items-center gap-1 rounded-md bg-card px-2 py-1 text-xs font-medium text-foreground shadow-sm ring-1 ring-black/5 backdrop-blur-md">
+              <TypeIcon className="size-3" />
+              {typeLabel}
             </span>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="flex flex-1 flex-col gap-3 p-5">
-        <div className="flex items-center justify-between gap-2">
-          <span
-            className={cn(
-              "rounded-full px-2.5 py-0.5 text-xs font-medium",
-              LEVEL_STYLES[course.level],
-            )}
-          >
-            {course.level}
-          </span>
-          <span className="text-xs text-muted-foreground">{course.category}</span>
-        </div>
+        <span
+          className={cn(
+            "w-fit rounded-full px-2.5 py-0.5 text-xs font-medium",
+            LEVEL_STYLES[course.level],
+          )}
+        >
+          {course.level}
+        </span>
 
         <h3 className="line-clamp-2 font-serif text-lg font-semibold leading-snug text-brand-brown-dark">
           {course.title}
         </h3>
 
-        <p className="text-sm text-muted-foreground">{course.authorName}</p>
+        <p className="line-clamp-2 text-sm text-muted-foreground">
+          {course.description?.trim() || course.authorName}
+        </p>
 
-        <div className="flex items-center gap-2">
-          <StarRating rating={course.rating} />
-          <span className="text-xs text-muted-foreground">
-            ({course.reviews})
-          </span>
-        </div>
-
-        <div className="mt-auto flex items-center justify-between border-t border-border/50 pt-4">
+        <div className="mt-auto flex items-center border-t border-border/50 pt-4">
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <DurationIcon className="size-3.5" />
             {course.duration}
-          </span>
-          <span className="text-base font-semibold text-foreground">
-            {course.price} €
           </span>
         </div>
       </div>
@@ -133,11 +97,7 @@ export function CourseCard({
   }
 
   return (
-    <button
-      type="button"
-      onClick={onSubscribeRequest}
-      className={className}
-    >
+    <button type="button" onClick={onSubscribeRequest} className={className}>
       <CourseCardContent course={course} isSubscribed={isSubscribed} />
     </button>
   );

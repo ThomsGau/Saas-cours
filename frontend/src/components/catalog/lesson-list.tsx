@@ -4,12 +4,12 @@ import { FileTextIcon, PlayCircleIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { Lesson } from "@/lib/api/types";
+import type { LessonPreview } from "@/lib/api/types";
 
 type LessonListProps = {
-  lessons: Lesson[];
+  lessons: LessonPreview[];
   selectedLessonId: number | null;
-  onSelectLesson: (lesson: Lesson) => void;
+  onSelectLesson: (lesson: LessonPreview) => void;
 };
 
 export function LessonList({

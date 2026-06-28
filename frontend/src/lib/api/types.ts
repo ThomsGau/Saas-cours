@@ -28,6 +28,7 @@ export type UserProfileResponse = {
   email: string;
   role: Role;
   displayName: string | null;
+  subscriptionStatus: SubscriptionStatus;
 };
 
 export type RegisterRequest = {
@@ -38,26 +39,38 @@ export type RegisterRequest = {
   role: Role;
 };
 
+export type CourseLevel = "Débutant" | "Intermédiaire" | "Avancé";
+
 export type CourseSummary = {
   id: number;
   title: string;
   description: string | null;
+  level: CourseLevel;
+  published: boolean;
   instructorId: number;
   instructorEmail: string;
   primaryLessonType: "VIDEO" | "PDF" | null;
+  totalDurationMinutes: number | null;
 };
 
-export type Lesson = {
+export type LessonPreview = {
   id: number;
   title: string;
   description: string | null;
   lessonType: "VIDEO" | "PDF";
-  contentUrl: string;
   position: number;
   durationMinutes: number | null;
 };
 
-export type CourseDetail = CourseSummary & {
+export type Lesson = LessonPreview & {
+  contentUrl: string;
+};
+
+export type CourseDetail = Omit<CourseSummary, never> & {
+  lessons: LessonPreview[];
+};
+
+export type InstructorCourseDetail = Omit<CourseSummary, never> & {
   lessons: Lesson[];
 };
 
@@ -110,6 +123,22 @@ export type CreateAvailabilityRequest = {
 export type CreateCourseRequest = {
   title: string;
   description?: string | null;
+  level: CourseLevel;
+};
+
+export type UpdateCourseRequest = {
+  title?: string;
+  description?: string | null;
+  level?: CourseLevel;
+  published?: boolean;
+};
+
+export type UpdateLessonRequest = {
+  title?: string;
+  description?: string | null;
+  contentUrl?: string;
+  durationMinutes?: number | null;
+  position?: number;
 };
 
 export type CreateLessonRequest = {
